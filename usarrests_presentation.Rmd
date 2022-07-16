@@ -1,0 +1,73 @@
+---
+title: "Violent Crime Rates in the US in 1973"
+author: "Katie Chai"
+date: "`r Sys.Date()`"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Overview
+
+<font size="4">
+This presentation includes two plots illustrating the exploratory data analysis of base R's `USArrests` dataset. This dataset includes the urban population percentage as well as the murder, assault, and rape arrest rates per 100,000 for each of the 50 US states. The data will be used in conjunction with the `us.cities` dataset of the `maps` library, which provides information on states' capitals.
+
+The first plot is a box plot of the distributions of each of the violent crime rates.
+
+The second plot is a map plot, with the color fill of each state representing the urban population percentage, and the marker sizes and colors representing the murder and assault rates, respectively, of each state. The markers are placed at each states' capitals' coordinates.
+
+All plots are generated using Plotly, allowing them to be interactive. You can choose different options on the top right corner of each plot.
+</font>
+
+```{r, message=FALSE}
+library(plotly); library(tidyverse); library(maps)
+data("USArrests")
+```
+
+```{r}
+USArrests <- USArrests %>%
+  mutate(State = rownames(USArrests), StateAbb = state.abb)
+USCities <- us.cities %>%
+  filter(capital != 0)
+df <- merge(USArrests, USCities, by.x="StateAbb", by.y="country.etc") %>%
+  select(-c(name, capital))
+```
+
+
+## Box Plots of Variables
+
+```{r, out.height="100%", out.width="100%"}
+murderbox <- plot_ly(y=USArrests$Murder, type="box", name="Murder") %>%
+  layout(yaxis=list(zerolinecolor="#FFFFFF"))
+assaultbox <- plot_ly(y=USArrests$Assault, type="box", name="Assault")
+rapebox <- plot_ly(y=USArrests$Rape, type="box", name="Rape")
+
+subplot(murderbox, assaultbox, rapebox) %>%
+  hide_legend() %>%
+  layout(title="Box Plots of Violent Crime Arrests Per 100,000 in Each State
+         (Note that the y-axis scales are different in each plot)",
+         margin=list(t=80))
+```
+
+## Map Plot of States
+
+```{r, warning=FALSE, out.height="100%", out.width="100%"}
+g <- list(scope="usa", projection=list(type="albers usa"))
+
+plot_ly(df, lat=~lat, lon=~long, type="scattergeo", mode="markers", hoverinfo="none", 
+        marker=list(size=~Murder*2, color=~Assault, colorscale="Reds")) %>%
+  add_trace(z=~UrbanPop, locations=~StateAbb, locationmode="USA-states", type="choropleth",
+            colorscale="Greens", reversescale=TRUE, hoverinfo="text", colorbar=list(y=0.8),
+            text=paste0(df$State, "<br>Urban Population Percentage: ", df$UrbanPop, "%",
+                        "<br>Murder Rate (per 100,000): ", df$Murder, 
+                        "<br>Assault Rate (per 100,000): ", df$Assault)) %>%
+  layout(geo=g, 
+         title="Map Plot of Each State with<br>Urban Population Percentage, Murder and Assault Rate",
+         annotations=list(x=1.1, y=-0.1, showarrow=FALSE,
+                          text="The larger the size and darker the color of the markers,<br>the higher the murder rate and assault rate, respectively"),
+         margin=list(t=50))
+```
+
+
